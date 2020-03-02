@@ -156,6 +156,7 @@ class AnalogSystem(object):
         Gsys = 1.0
         kB = 1.380649e-23 * 1e6  
         
+        print("     System bandwidth: {} MHz".format(self.bw/1e6))
         
         print("     Component        |   T_comp   |   G_comp      ||   T_sys    |    G_sys   |  P_sys")
         print("                      |     (K)    |    (dB)       ||    (K)     |    (dB)    |  (dBm)")
