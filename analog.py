@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 def noise_to_temp(NF, linear=False, amb_temp=290):
     """ Noise Figure to Noise Temperature
     
@@ -58,7 +59,7 @@ class AnalogComponent(object):
     def __init__(self, name, T=0.0, G=1.0, amb_temp=290):
         self.name = name
         
-        if type(T) in set((str, unicode)):
+        if type(T) in set((str, bytes)):
             T = T.lower().strip()
             try:
                 if 'db' in T:
@@ -70,10 +71,10 @@ class AnalogComponent(object):
                 else:
                     T = float(T)
             except ValueError:
-                print "Error: Cannot understand %s"%T
+                print("Error: Cannot understand %s"%T)
                 raise ValueError
         
-        if type(G) in set((str, unicode)):
+        if type(G) in set((str, bytes)):
             G = G.lower().strip()
             try:
                 if 'db' in G:
@@ -83,15 +84,15 @@ class AnalogComponent(object):
                 else:
                     G = float(G)
             except ValueError:
-                print "Error: Cannot understand %s"%T
+                print("Error: Cannot understand %s"%T)
                 raise ValueError
                 
         self.T    = T
         self.G    = G
     
     def __repr__(self):
-        n, t, g = self.name.ljust(10), self.T, lin2db(self.G)
-        return "Component: %s %04.2fK \t %04.2fdB \n"%(n, t, g)
+        n, t, g = self.name.ljust(16), self.T, lin2db(self.G)
+        return "{:<16s} | {:^10.2f} | {:^10.2f} \n".format(n, t, g)
 
     def set_noise_figure(self, NF):
         """ Set noise figure NF """
@@ -116,10 +117,11 @@ class AnalogComponent(object):
     
 class AnalogSystem(object):
     """ Analog receiver system """
-    def __init__(self):
+    def __init__(self, bw):
         self.components = []
         self.Tsys = 0
         self.Gsys = 1
+        self.bw   = bw
     
     def __repr__(self):
         toprint = 'AnalogSystem\n------------\n'
@@ -137,6 +139,10 @@ class AnalogSystem(object):
         """
         
         self.components.append(comp)
+
+    def add_break(self, breakname):
+        breakstr = "{:-^88}".format(breakname)
+        self.components.append(breakstr)
     
     def compute_tsys(self):
         """ Compute the Tsys of the analog system 
@@ -148,17 +154,26 @@ class AnalogSystem(object):
         
         Tsys = 0.0
         Gsys = 1.0
+        kB = 1.380649e-23 * 1e6  
         
+        
+        print("     Component        |   T_comp   |   G_comp      ||   T_sys    |    G_sys   |  P_sys")
+        print("                      |     (K)    |    (dB)       ||    (K)     |    (dB)    |  (dBm)")
+        print("   " + "-" * 88)
         for comp in self.components:
+            if isinstance(comp, str):
+                print("   " + comp)
+            else:
+                Tx = comp.T
+                Gx = comp.G
             
-            Tx = comp.T
-            Gx = comp.G
+                Tx_w  = Tx / Gsys
             
-            Tx_w  = Tx / Gsys
+                Tsys += Tx_w
+                Gsys *= Gx
             
-            Tsys += Tx_w
-            Gsys *= Gx
-            
-            G_db = 10*np.log10(Gsys)
-            cstr = str(comp.__repr__()).strip()
-            print "%s \t | Tsys: %04.2fK \t Gsys: %04.2f dB"%(cstr, Tsys, G_db)
+                G_db = 10*np.log10(Gsys)
+                P0    = kB * self.bw * Tsys
+                P_dbm = 10 * np.log10( P0 / 1e3) + G_db
+                cstr = str(comp.__repr__()).strip()
+                print("{:^50} || {:^10.2f} | {:^10.2f} | {:^10.2f} ".format(cstr, Tsys, G_db, P_dbm))
