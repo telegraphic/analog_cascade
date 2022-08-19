@@ -41,6 +41,8 @@ def db2lin(val):
     """ Convert a value to decibels (dB) """
     return 10**(val/10)
     
+
+
 class AnalogComponent(object):
     """ An analog component 
     
@@ -56,7 +58,7 @@ class AnalogComponent(object):
         Ambient temperature. Defaults to 290K
     
     """
-    def __init__(self, name, T=0.0, G=1.0, amb_temp=290):
+    def __init__(self, name, T=0.0, G=1.0, amb_temp=290, IP3=np.inf):
         self.name = name
         
         if type(T) in set((str, bytes)):
@@ -86,13 +88,28 @@ class AnalogComponent(object):
             except ValueError:
                 print("Error: Cannot understand %s"%T)
                 raise ValueError
+
+        if type(IP3) in set((str, bytes)):
+            IP3 = IP3.lower().strip()
+            try:
+                if 'db' in IP3:
+                    IP3 = db2lin(float(IP3.strip('dbm')))
+                elif 'lin' in G:
+                    IP3 = float(IP3.strip('lin'))
+                else:
+                    IP3 = IP3
+            except ValueError:
+                print("Error: Cannot understand %s"%T)
+                raise ValueError
                 
         self.T    = T
         self.G    = G
+        self.IP3  = IP3
+        
     
     def __repr__(self):
         n, t, g = self.name.ljust(16), self.T, lin2db(self.G)
-        return "{:<16s} | {:^10.2f} | {:^10.2f} \n".format(n, t, g)
+        return f"{n:<16s} | {t:^10.2f} | {g:^10.2f} \n"
 
     def set_noise_figure(self, NF):
         """ Set noise figure NF """
@@ -113,20 +130,40 @@ class AnalogComponent(object):
     def set_gain_linear(self, g):
         """ Set gain in linear units """
         self.G = g
-        
+
+class SkySpectrum(AnalogComponent):
+    def __init__(self, freqs):
+        from pygdsm import GlobalSkyModel
+        self.freqs = freqs
+        self.skymodel    = GlobalSkyModel()
+        self.spectrum = self.skymodel.generate(freqs).mean(axis=1)
+        T = self.spectrum.mean()
+
+        super().__init__('SkyModel', T)
+
     
 class AnalogSystem(object):
     """ Analog receiver system """
-    def __init__(self, bw):
+    def __init__(self, bw, name='Analog System'):
         self.components = []
         self.Tsys = 0
         self.Gsys = 1
         self.bw   = bw
+        self.name = name
     
     def __repr__(self):
-        toprint = 'AnalogSystem\n------------\n'
+        toprint = f'\n############   {self.name}  ########### \n'
+        toprint+= f"System bandwidth: {self.bw/1e6} MHz \n"
+        toprint += "\n###  Signal chain: \n"
+        toprint += f"{'Component':<16s}  | {'Temp (K)':<10s} | {'Gain (dB)':<10s} \n"
+        toprint += "-" * 42 + "\n"
         for c in self.components:
-            toprint += str(c)
+            if not str(c).startswith('-'):
+                toprint += " " + str(c)
+            #else:
+            #    toprint += "\n" + str(c) + "\n"
+                
+        toprint += "-" * 45 + "\n"
         return toprint
     
     def add_component(self, comp):
@@ -141,7 +178,7 @@ class AnalogSystem(object):
         self.components.append(comp)
 
     def add_break(self, breakname):
-        breakstr = "{:-^88}".format(breakname)
+        breakstr = "{:-^98}".format(breakname)
         self.components.append(breakstr)
     
     def compute_tsys(self):
@@ -155,26 +192,35 @@ class AnalogSystem(object):
         Tsys = 0.0
         Gsys = 1.0
         kB = 1.380649e-23 * 1e6  
+        inv_IP3 = 10e-101
         
-        print("     System bandwidth: {} MHz".format(self.bw/1e6))
-        
-        print("     Component        |   T_comp   |   G_comp      ||   T_sys    |    G_sys   |  P_sys")
-        print("                      |     (K)    |    (dB)       ||    (K)     |    (dB)    |  (dBm)")
-        print("   " + "-" * 88)
+        print(self.__repr__())
+
+        print("\n### Cascaded system: \n")
+        print("   " + "-" * 98 + "\n")
+        print("     Component        |   T_comp   |   G_comp      ||   T_sys    |    G_sys   |   P_sys    |   IP3 ")
+        print("                      |     (K)    |    (dB)       ||    (K)     |    (dB)    |   (dBm)    |  (dBm)")
+        print("   " + "-" * 98)
         for comp in self.components:
             if isinstance(comp, str):
                 print("   " + comp)
             else:
                 Tx = comp.T
                 Gx = comp.G
+                inv_IP3x = 1 / comp.IP3
+                
             
                 Tx_w  = Tx / Gsys
-            
+                
                 Tsys += Tx_w
                 Gsys *= Gx
+                inv_IP3 += inv_IP3x
+                #print(inv_IP3x, inv_IP3)
             
                 G_db = 10*np.log10(Gsys)
+                IP3_dbm = 10*np.log10(1.0/inv_IP3)
                 P0    = kB * self.bw * Tsys
                 P_dbm = 10 * np.log10( P0 / 1e3) + G_db
                 cstr = str(comp.__repr__()).strip()
-                print("{:^50} || {:^10.2f} | {:^10.2f} | {:^10.2f} ".format(cstr, Tsys, G_db, P_dbm))
+                print(f"{cstr:^50} || {Tsys:^10.2f} | {G_db:^10.2f} | {P_dbm:^10.2f} | {IP3_dbm:^10.2f}")
+        print("   " + "-" * 98 + "\n")
