@@ -38,5 +38,6 @@ if __name__ == '__main__':
     
     stats = hyp.compute_tsys()
 
-    print(stats['Pout_dbm'], 'dBm')
+    #print(stats['Pout_dbm'], 'dBm')
     print(adc)
+    adc.bit_occupancy(stats['Pout_dbm'])

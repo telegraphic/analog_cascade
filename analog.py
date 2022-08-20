@@ -147,11 +147,11 @@ class ADC(object):
         self.mVpp  = mVpp
         self.name  = name
         
-        min_voltage_rms = (mVpp * 1e-3) / (2**nbits * np.sqrt(2))
-        self.min_power_dbm = lin2db((min_voltage_rms**2 / Z0) / 1e-3)
+        self.min_voltage_rms = (mVpp * 1e-3) / (2**nbits * np.sqrt(2))
+        self.min_power_dbm = lin2db((self.min_voltage_rms**2 / Z0) / 1e-3)
 
-        max_voltage_rms =  (mVpp * 1e-3) / np.sqrt(2)
-        self.max_power_dbm = lin2db((max_voltage_rms**2 / Z0) / 1e-3)
+        self.max_voltage_rms =  (mVpp * 1e-3) / np.sqrt(2)
+        self.max_power_dbm = lin2db((self.max_voltage_rms**2 / Z0) / 1e-3)
     
     def __repr__(self):
         toprint = f"{self.name}: {self.nbits} bits, {self.mVpp} mVpp\n"
@@ -159,8 +159,15 @@ class ADC(object):
         toprint += f"    Maximum input power: {self.max_power_dbm:2.2f} dBm\n"
         return toprint
 
-
-    
+    def bit_occupancy(self, power_dbm):
+        power_lin = 10**(power_dbm/10)
+        power_min_lin = 10**(self.min_power_dbm/10)
+        n_levels = int(power_lin / power_min_lin)
+        n_bits_used = np.log2(n_levels)
+        print("### Bit occupancy report")
+        print(f"    Tickling level {n_levels} / {2**(self.nbits)}")
+        print(f"        ({n_bits_used:2.2f} / {self.nbits} bits)")
+        print(f"    RFI overhead: {self.nbits - n_bits_used:2.2f} bits")
 class AnalogSystem(object):
     """ Analog receiver system """
     def __init__(self, bw, name='Analog System'):
