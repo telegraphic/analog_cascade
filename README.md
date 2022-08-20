@@ -40,4 +40,13 @@ Component         | Temp (K)   | Gain (dB)
      ZFL-500HLN       |   405.66   |   19.00       ||  1622.44   |   23.51    |   -58.22   |   26.99
      ZFL-500HLN       |   405.66   |   19.00       ||  1624.24   |   42.51    |   -39.21   |   25.23
    --------------------------------------------------------------------------------------------------
+   
+Signatek card: 8 bits, 500 mVpp
+    Minimum input power: -44.19 dBm
+    Maximum input power: 3.98 dBm
+
+### Bit occupancy report
+    Tickling level 3 / 256
+        (1.58 / 8 bits)
+    RFI overhead: 6.42 bits
 ```
