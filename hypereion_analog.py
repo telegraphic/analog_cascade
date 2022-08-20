@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-from analog import AnalogSystem, AnalogComponent, SkySpectrum
+from analog import AnalogSystem, AnalogComponent, SkySpectrum, ADC
 
 # 8-bit ADC (500 mVpp) 
 # -44.1 dBm input minimum, 4.0 dBm maximum input
@@ -17,6 +17,7 @@ if __name__ == '__main__':
     xswitch    = AnalogComponent('xSw MTS-18-12B', '0.1dB', '-0.1dB')
     splitter   = AnalogComponent('Power split', '3dB', '-3dB')
     cable_100m = AnalogComponent('100m Cable', '11.1dB', '-11.1dB')
+    adc        = ADC(nbits=8, mVpp=500, name='Signatek card')
     
     
     # Cascade network components
@@ -35,4 +36,7 @@ if __name__ == '__main__':
     hyp.add_component(amp_zfl500)
     hyp.add_component(amp_zfl500)
     
-    hyp.compute_tsys()
+    stats = hyp.compute_tsys()
+
+    print(stats['Pout_dbm'], 'dBm')
+    print(adc)

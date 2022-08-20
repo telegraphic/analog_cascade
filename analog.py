@@ -141,6 +141,25 @@ class SkySpectrum(AnalogComponent):
 
         super().__init__('SkyModel', T)
 
+class ADC(object):
+    def __init__(self, nbits, mVpp, Z0=50, name='ADC'):
+        self.nbits = nbits
+        self.mVpp  = mVpp
+        self.name  = name
+        
+        min_voltage_rms = (mVpp * 1e-3) / (2**nbits * np.sqrt(2))
+        self.min_power_dbm = lin2db((min_voltage_rms**2 / Z0) / 1e-3)
+
+        max_voltage_rms =  (mVpp * 1e-3) / np.sqrt(2)
+        self.max_power_dbm = lin2db((max_voltage_rms**2 / Z0) / 1e-3)
+    
+    def __repr__(self):
+        toprint = f"{self.name}: {self.nbits} bits, {self.mVpp} mVpp\n"
+        toprint += f"    Minimum input power: {self.min_power_dbm:2.2f} dBm\n"
+        toprint += f"    Maximum input power: {self.max_power_dbm:2.2f} dBm\n"
+        return toprint
+
+
     
 class AnalogSystem(object):
     """ Analog receiver system """
@@ -197,7 +216,7 @@ class AnalogSystem(object):
         print(self.__repr__())
 
         print("\n### Cascaded system: \n")
-        print("   " + "-" * 98 + "\n")
+        print("   " + "-" * 98 )
         print("     Component        |   T_comp   |   G_comp      ||   T_sys    |    G_sys   |   P_sys    |   IP3 ")
         print("                      |     (K)    |    (dB)       ||    (K)     |    (dB)    |   (dBm)    |  (dBm)")
         print("   " + "-" * 98)
@@ -224,3 +243,5 @@ class AnalogSystem(object):
                 cstr = str(comp.__repr__()).strip()
                 print(f"{cstr:^50} || {Tsys:^10.2f} | {G_db:^10.2f} | {P_dbm:^10.2f} | {IP3_dbm:^10.2f}")
         print("   " + "-" * 98 + "\n")
+
+        return {'Tsys_K': Tsys, 'Gsys_dbm': Gsys, 'IP3_dbm': IP3_dbm, 'Pout_dbm': P_dbm}
